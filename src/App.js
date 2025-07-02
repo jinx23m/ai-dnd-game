@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+// Firebase Imports (ensure these are available in your setup)
+import { initializeApp } from "firebase/app";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+
 
 // --- TRANSLATION DATA ---
 const translations = {
@@ -249,6 +254,15 @@ const apiHelper = {
     }
 };
 
+// --- Firebase Config and Initialization ---
+const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG 
+    ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) 
+    : {};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+
 // --- MAIN APP COMPONENT ---
 export default function App() {
     const [gameState, setGameState] = useState('language_selection');
@@ -257,7 +271,81 @@ export default function App() {
     const [story, setStory] = useState([]);
     const [worldLore, setWorldLore] = useState({ text: '', images: [], worldMap: '' });
     const [bestiary, setBestiary] = useState([]);
+    const [userId, setUserId] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [notification, setNotification] = useState('');
     const t = useTranslation(language);
+
+    useEffect(() => {
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                setUserId(user.uid);
+            } else {
+                signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+            }
+        });
+    }, []);
+
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(''), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+
+    const saveGame = async () => {
+        if (!userId || !character) return;
+        setIsSaving(true);
+        const appId = 'dnd-ai-game-v1';
+        
+        const saveState = {
+            language,
+            character: JSON.stringify(character),
+            story: JSON.stringify(story),
+            worldLore: JSON.stringify({ ...worldLore, images: [], worldMap: '' }), 
+            bestiary: JSON.stringify(bestiary.map(b => ({...b, image: ''}))),
+            gameState: 'playing'
+        };
+
+        try {
+            const saveDocRef = doc(db, 'artifacts', appId, 'users', userId, 'saves', 'dnd-save-slot-1');
+            await setDoc(saveDocRef, saveState); 
+            setNotification(t('gameSaved'));
+        } catch (error) {
+            console.error("Error saving game:", error);
+            setNotification('Error saving game.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const loadGame = async () => {
+        if (!userId) return;
+        setIsSaving(true);
+        const appId = 'dnd-ai-game-v1';
+        try {
+            const saveDocRef = doc(db, 'artifacts', appId, 'users', userId, 'saves', 'dnd-save-slot-1');
+            const docSnap = await getDoc(saveDocRef);
+
+            if (docSnap.exists()) {
+                const loadedData = docSnap.data();
+                setLanguage(loadedData.language || 'en');
+                setCharacter(loadedData.character ? JSON.parse(loadedData.character) : null);
+                setStory(loadedData.story ? JSON.parse(loadedData.story) : []);
+                setWorldLore(loadedData.worldLore ? JSON.parse(loadedData.worldLore) : { text: '', images: [], worldMap: '' });
+                setBestiary(loadedData.bestiary ? JSON.parse(loadedData.bestiary) : []);
+                setGameState(loadedData.gameState || 'main_menu');
+                setNotification(t('gameLoaded'));
+            } else {
+                setNotification(t('noSave'));
+            }
+        } catch (error) {
+            console.error("Error loading game:", error);
+            setNotification('Error loading game.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleCharacterCreated = (char) => {
         setCharacter(char);
@@ -277,15 +365,17 @@ export default function App() {
 
     const componentMap = {
         language_selection: <LanguageSelectionScreen setLanguage={setLanguage} setGameState={setGameState} />,
+        main_menu: <MainMenuScreen t={t} setGameState={setGameState} loadGame={loadGame} isLoading={isSaving} />,
         character_creation: <CharacterCreationScreen lang={language} t={t} onCharacterCreated={handleCharacterCreated} />,
         world_intro: <WorldIntroScreen lang={language} t={t} character={character} worldLore={worldLore} setWorldLore={setWorldLore} setGameState={setGameState} />,
-        playing: <GameScreen lang={language} t={t} character={character} setCharacter={setCharacter} story={story} setStory={setStory} bestiary={bestiary} setBestiary={setBestiary} worldMapUrl={worldLore.worldMap} />,
+        playing: <GameScreen lang={language} t={t} character={character} setCharacter={setCharacter} story={story} setStory={setStory} bestiary={bestiary} setBestiary={setBestiary} saveGame={saveGame} isSaving={isSaving} setNotification={setNotification} worldMapUrl={worldLore.worldMap} />,
         game_over: <GameOverScreen t={t} onRestart={resetGame} />,
     };
 
     return (
         <div className="min-h-screen bg-gray-900 text-white font-serif" dir={language === 'he' ? 'rtl' : 'ltr'}>
-           {componentMap[gameState] || <LanguageSelectionScreen setLanguage={setLanguage} setGameState={setGameState} />}
+           {notification && <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-green-600 text-white py-2 px-4 rounded-lg shadow-lg z-50">{notification}</div>}
+           {componentMap[gameState] || <MainMenuScreen t={t} setGameState={setGameState} loadGame={loadGame} isLoading={isSaving} />}
         </div>
     );
 }
@@ -293,7 +383,7 @@ export default function App() {
 function LanguageSelectionScreen({ setLanguage, setGameState }) {
     const selectLang = (lang) => {
         setLanguage(lang);
-        setGameState('character_creation');
+        setGameState('main_menu');
     };
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -302,6 +392,33 @@ function LanguageSelectionScreen({ setLanguage, setGameState }) {
                 <button onClick={() => selectLang('en')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">English</button>
                 <button onClick={() => selectLang('he')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">עברית</button>
                 <button onClick={() => selectLang('ru')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">Русский</button>
+            </div>
+        </div>
+    );
+}
+
+function MainMenuScreen({ t, setGameState, loadGame, isLoading }) {
+    const [logoUrl, setLogoUrl] = useState('');
+    
+    useEffect(() => {
+        apiHelper.generateImage("an epic logo for a fantasy RPG game called 'AI Dungeons', with a stylized dragon and a glowing die, digital art")
+            .then(url => {
+                if(url && !url.includes('placehold.co')) {
+                    setLogoUrl(url);
+                }
+            });
+    }, []);
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-4">
+            {logoUrl ? (
+                 <img src={logoUrl} alt="AI Dungeons Logo" className="w-64 h-64 md:w-80 md:h-80 object-contain mb-8" />
+            ) : (
+                <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-8 text-center">AI Dungeons</h1>
+            )}
+            <div className="flex flex-col gap-4">
+                <button onClick={() => setGameState('character_creation')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition">{t('newGame')}</button>
+                <button onClick={loadGame} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition disabled:bg-gray-500">{isLoading ? t('loading') : t('loadGame')}</button>
             </div>
         </div>
     );
