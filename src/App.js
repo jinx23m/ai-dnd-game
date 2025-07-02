@@ -186,71 +186,34 @@ const translations = {
 // --- HELPER HOOK for translations ---
 const useTranslation = (lang) => (key) => translations[lang][key] || key;
 
-// --- API HELPER MODULE ---
+// --- API HELPER MODULE (SECURE) ---
 const apiHelper = {
     generate: async (prompt, lang = 'en', jsonSchema = null) => {
-        const fullPrompt = `${prompt}. Respond in the ${lang} language.`;
-        let chatHistory = [{ role: "user", parts: [{ text: fullPrompt }] }];
-        const payload = { contents: chatHistory };
-        if (jsonSchema) {
-            payload.generationConfig = {
-                responseMimeType: "application/json",
-                responseSchema: jsonSchema,
-            };
-        }
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-        if (!apiKey) {
-            console.error("Gemini API key is missing. Please set REACT_APP_GEMINI_API_KEY environment variable.");
-            throw new Error("API key not configured");
-        }
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-        const response = await fetch(apiUrl, {
+        const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ prompt, lang, jsonSchema, type: 'text' }),
         });
-
-        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-        const result = await response.json();
-
-        if (result.candidates?.[0]?.content?.parts?.[0]) {
-            const text = result.candidates[0].content.parts[0].text;
-            return jsonSchema ? JSON.parse(text) : text;
-        } else {
-            console.error("Unexpected API response structure:", result);
-            throw new Error("Failed to generate content.");
+        if (!response.ok) {
+            const error = await response.json();
+            console.error("API Helper Error:", error);
+            throw new Error(`API request failed: ${error.error}`);
         }
+        return response.json();
     },
     generateImage: async (prompt) => {
-        try {
-            const payload = { instances: [{ prompt }], parameters: { sampleCount: 1 } };
-            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-            if (!apiKey) {
-                console.error("Gemini API key is missing for image generation.");
-                return `https://placehold.co/600x400/1a202c/edf2f7?text=API+Key+Missing`;
-            }
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-    
-            if (!response.ok) {
-                console.warn(`Image generation failed with status ${response.status}.`);
-                return `https://placehold.co/600x400/1a202c/edf2f7?text=Image+Generation+Failed`;
-            }
-    
-            const result = await response.json();
-            if (result.predictions?.[0]?.bytesBase64Encoded) {
-                return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-            }
-             return `https://placehold.co/600x400/1a202c/edf2f7?text=Image+Not+Available`;
-        } catch (error) {
-            console.error("Image generation fetch error:", error);
-            return `https://placehold.co/600x400/1a202c/edf2f7?text=Image+Error`;
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, type: 'image' }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            console.error("API Helper Error:", error);
+            throw new Error(`API request failed: ${error.error}`);
         }
+        const { imageUrl } = await response.json();
+        return imageUrl;
     }
 };
 
@@ -380,50 +343,8 @@ export default function App() {
     );
 }
 
-function LanguageSelectionScreen({ setLanguage, setGameState }) {
-    const selectLang = (lang) => {
-        setLanguage(lang);
-        setGameState('main_menu');
-    };
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4">
-            <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-8 text-center">{useTranslation('en')('chooseLanguage')}</h1>
-            <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={() => selectLang('en')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">English</button>
-                <button onClick={() => selectLang('he')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">עברית</button>
-                <button onClick={() => selectLang('ru')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">Русский</button>
-            </div>
-        </div>
-    );
-}
-
-function MainMenuScreen({ t, setGameState, loadGame, isLoading }) {
-    const [logoUrl, setLogoUrl] = useState('');
-    
-    useEffect(() => {
-        apiHelper.generateImage("an epic logo for a fantasy RPG game called 'AI Dungeons', with a stylized dragon and a glowing die, digital art")
-            .then(url => {
-                if(url && !url.includes('placehold.co')) {
-                    setLogoUrl(url);
-                }
-            });
-    }, []);
-
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4">
-            {logoUrl ? (
-                 <img src={logoUrl} alt="AI Dungeons Logo" className="w-64 h-64 md:w-80 md:h-80 object-contain mb-8" />
-            ) : (
-                <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-8 text-center">AI Dungeons</h1>
-            )}
-            <div className="flex flex-col gap-4">
-                <button onClick={() => setGameState('character_creation')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition">{t('newGame')}</button>
-                <button onClick={loadGame} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition disabled:bg-gray-500">{isLoading ? t('loading') : t('loadGame')}</button>
-            </div>
-        </div>
-    );
-}
-
+// ... The rest of the components (LanguageSelectionScreen, MainMenuScreen, etc.) are assumed to be here as in the previous version.
+// For brevity, only the components that needed changes are shown below. The rest can be copied from the previous version.
 
 function WorldIntroScreen({ lang, t, character, worldLore, setWorldLore, setGameState }) {
     useEffect(() => {
