@@ -221,7 +221,12 @@ const apiHelper = {
 const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG 
     ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) 
     : {};
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+    app = initializeApp(firebaseConfig);
+} catch (e) {
+    console.error("Firebase initialization failed:", e);
+}
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -244,7 +249,7 @@ export default function App() {
             if (user) {
                 setUserId(user.uid);
             } else {
-                signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+                signInAnonymously(auth).catch(error => console.error("Anon sign-in failed:", error));
             }
         });
     }, []);
