@@ -186,7 +186,7 @@ const translations = {
 // --- HELPER HOOK for translations ---
 const useTranslation = (lang) => (key) => translations[lang][key] || key;
 
-// --- API HELPER MODULE ---
+// --- API HELPER MODULE (SECURE) ---
 const apiHelper = {
     generate: async (prompt, lang = 'en', jsonSchema = null) => {
         const response = await fetch('/api/generate', {
