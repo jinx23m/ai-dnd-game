@@ -35,7 +35,6 @@ const translations = {
         bestiary: "Bestiary",
         noItems: "Inventory is empty.",
         noCreatures: "No creatures encountered yet.",
-        narrator: "Narrator:",
         whatToDo: "What do you do?",
         act: "Act",
         getSuggestion: "✨ Suggest",
@@ -94,7 +93,6 @@ const translations = {
         bestiary: "ספר מפלצות",
         noItems: "הציוד ריק.",
         noCreatures: "עדיין לא נתקלתם ביצורים.",
-        narrator: "קריין:",
         whatToDo: "מה תעשו?",
         act: "בצעו",
         getSuggestion: "✨ הצע",
@@ -153,7 +151,6 @@ const translations = {
         bestiary: "Бестиарий",
         noItems: "Инвентарь пуст.",
         noCreatures: "Существ пока не встречали.",
-        narrator: "Рассказчик:",
         whatToDo: "Что вы делаете?",
         act: "Действовать",
         getSuggestion: "✨ Предложить",
@@ -201,7 +198,11 @@ const apiHelper = {
                 responseSchema: jsonSchema,
             };
         }
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error("Gemini API key is missing. Please set REACT_APP_GEMINI_API_KEY environment variable.");
+            throw new Error("API key not configured");
+        }
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
         const response = await fetch(apiUrl, {
@@ -224,7 +225,11 @@ const apiHelper = {
     generateImage: async (prompt) => {
         try {
             const payload = { instances: [{ prompt }], parameters: { sampleCount: 1 } };
-            const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+            if (!apiKey) {
+                console.error("Gemini API key is missing for image generation.");
+                return `https://placehold.co/600x400/1a202c/edf2f7?text=API+Key+Missing`;
+            }
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
             const response = await fetch(apiUrl, {
                 method: 'POST',
