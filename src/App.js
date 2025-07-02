@@ -186,34 +186,71 @@ const translations = {
 // --- HELPER HOOK for translations ---
 const useTranslation = (lang) => (key) => translations[lang][key] || key;
 
-// --- API HELPER MODULE (SECURE) ---
+// --- API HELPER MODULE ---
 const apiHelper = {
     generate: async (prompt, lang = 'en', jsonSchema = null) => {
-        const response = await fetch('/api/generate', {
+        const fullPrompt = `${prompt}. Respond in the ${lang} language.`;
+        let chatHistory = [{ role: "user", parts: [{ text: fullPrompt }] }];
+        const payload = { contents: chatHistory };
+        if (jsonSchema) {
+            payload.generationConfig = {
+                responseMimeType: "application/json",
+                responseSchema: jsonSchema,
+            };
+        }
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error("Gemini API key is missing. Please set REACT_APP_GEMINI_API_KEY environment variable.");
+            throw new Error("API key not configured");
+        }
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, lang, jsonSchema, type: 'text' }),
+            body: JSON.stringify(payload)
         });
-        if (!response.ok) {
-            const error = await response.json();
-            console.error("API Helper Error:", error);
-            throw new Error(`API request failed: ${error.error}`);
+
+        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+        const result = await response.json();
+
+        if (result.candidates?.[0]?.content?.parts?.[0]) {
+            const text = result.candidates[0].content.parts[0].text;
+            return jsonSchema ? JSON.parse(text) : text;
+        } else {
+            console.error("Unexpected API response structure:", result);
+            throw new Error("Failed to generate content.");
         }
-        return response.json();
     },
     generateImage: async (prompt) => {
-        const response = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, type: 'image' }),
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            console.error("API Helper Error:", error);
-            throw new Error(`API request failed: ${error.error}`);
+        try {
+            const payload = { instances: [{ prompt }], parameters: { sampleCount: 1 } };
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+            if (!apiKey) {
+                console.error("Gemini API key is missing for image generation.");
+                return `https://placehold.co/600x400/1a202c/edf2f7?text=API+Key+Missing`;
+            }
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+    
+            if (!response.ok) {
+                console.warn(`Image generation failed with status ${response.status}.`);
+                return `https://placehold.co/600x400/1a202c/edf2f7?text=Image+Generation+Failed`;
+            }
+    
+            const result = await response.json();
+            if (result.predictions?.[0]?.bytesBase64Encoded) {
+                return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+            }
+             return `https://placehold.co/600x400/1a202c/edf2f7?text=Image+Not+Available`;
+        } catch (error) {
+            console.error("Image generation fetch error:", error);
+            return `https://placehold.co/600x400/1a202c/edf2f7?text=Image+Error`;
         }
-        const { imageUrl } = await response.json();
-        return imageUrl;
     }
 };
 
