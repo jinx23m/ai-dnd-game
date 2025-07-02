@@ -52,10 +52,8 @@ export default async function handler(req, res) {
             : 'https://placehold.co/600x400/1a202c/edf2f7?text=Image+Not+Available';
         res.status(200).json({ imageUrl });
     } else {
-        // For text generation, we need to extract the actual text from the complex response structure.
         if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
              const text = data.candidates[0].content.parts[0].text;
-             // If a JSON schema was expected, parse the text.
              const finalData = jsonSchema ? JSON.parse(text) : text;
              res.status(200).json(finalData);
         } else {
