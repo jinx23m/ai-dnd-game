@@ -186,7 +186,7 @@ const translations = {
 // --- HELPER HOOK for translations ---
 const useTranslation = (lang) => (key) => translations[lang][key] || key;
 
-// --- API HELPER MODULE (SECURE) ---
+// --- API HELPER MODULE ---
 const apiHelper = {
     generate: async (prompt, lang = 'en', jsonSchema = null) => {
         const response = await fetch('/api/generate', {
@@ -343,8 +343,50 @@ export default function App() {
     );
 }
 
-// ... The rest of the components (LanguageSelectionScreen, MainMenuScreen, etc.) are assumed to be here as in the previous version.
-// For brevity, only the components that needed changes are shown below. The rest can be copied from the previous version.
+function LanguageSelectionScreen({ setLanguage, setGameState }) {
+    const selectLang = (lang) => {
+        setLanguage(lang);
+        setGameState('main_menu');
+    };
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-4">
+            <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-8 text-center">{useTranslation('en')('chooseLanguage')}</h1>
+            <div className="flex flex-col sm:flex-row gap-4">
+                <button onClick={() => selectLang('en')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">English</button>
+                <button onClick={() => selectLang('he')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">עברית</button>
+                <button onClick={() => selectLang('ru')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition">Русский</button>
+            </div>
+        </div>
+    );
+}
+
+function MainMenuScreen({ t, setGameState, loadGame, isLoading }) {
+    const [logoUrl, setLogoUrl] = useState('');
+    
+    useEffect(() => {
+        apiHelper.generateImage("an epic logo for a fantasy RPG game called 'AI Dungeons', with a stylized dragon and a glowing die, digital art")
+            .then(url => {
+                if(url && !url.includes('placehold.co')) {
+                    setLogoUrl(url);
+                }
+            });
+    }, []);
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-4">
+            {logoUrl ? (
+                 <img src={logoUrl} alt="AI Dungeons Logo" className="w-64 h-64 md:w-80 md:h-80 object-contain mb-8" />
+            ) : (
+                <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-8 text-center">AI Dungeons</h1>
+            )}
+            <div className="flex flex-col gap-4">
+                <button onClick={() => setGameState('character_creation')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition">{t('newGame')}</button>
+                <button onClick={loadGame} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition disabled:bg-gray-500">{isLoading ? t('loading') : t('loadGame')}</button>
+            </div>
+        </div>
+    );
+}
+
 
 function WorldIntroScreen({ lang, t, character, worldLore, setWorldLore, setGameState }) {
     useEffect(() => {
