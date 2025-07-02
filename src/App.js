@@ -35,7 +35,6 @@ const translations = {
         bestiary: "Bestiary",
         noItems: "Inventory is empty.",
         noCreatures: "No creatures encountered yet.",
-        narrator: "Narrator:",
         whatToDo: "What do you do?",
         act: "Act",
         getSuggestion: "✨ Suggest",
@@ -94,7 +93,6 @@ const translations = {
         bestiary: "ספר מפלצות",
         noItems: "הציוד ריק.",
         noCreatures: "עדיין לא נתקלתם ביצורים.",
-        narrator: "קריין:",
         whatToDo: "מה תעשו?",
         act: "בצעו",
         getSuggestion: "✨ הצע",
@@ -153,7 +151,6 @@ const translations = {
         bestiary: "Бестиарий",
         noItems: "Инвентарь пуст.",
         noCreatures: "Существ пока не встречали.",
-        narrator: "Рассказчик:",
         whatToDo: "Что вы делаете?",
         act: "Действовать",
         getSuggestion: "✨ Предложить",
@@ -250,7 +247,10 @@ const apiHelper = {
 };
 
 // --- Firebase Config and Initialization ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// FIX: Reads from environment variables which are necessary for deployment on Vercel.
+const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG 
+    ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) 
+    : {};
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -289,8 +289,8 @@ export default function App() {
     const saveGame = async () => {
         if (!userId || !character) return;
         setIsSaving(true);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'dnd-game';
-        
+        // FIX: The app ID is now defined here, removing the dependency on an external variable.
+        const appId = 'dnd-ai-game-v1';
         const saveState = {
             language,
             character: JSON.stringify(character),
@@ -315,7 +315,7 @@ export default function App() {
     const loadGame = async () => {
         if (!userId) return;
         setIsSaving(true);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'dnd-game';
+        const appId = 'dnd-ai-game-v1';
         try {
             const saveDocRef = doc(db, 'artifacts', appId, 'users', userId, 'saves', 'dnd-save-slot-1');
             const docSnap = await getDoc(saveDocRef);
