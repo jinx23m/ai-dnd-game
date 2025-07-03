@@ -367,23 +367,32 @@ function LanguageSelectionScreen({ setLanguage, setGameState }) {
 
 function MainMenuScreen({ t, setGameState, loadGame, isLoading }) {
     const [logoUrl, setLogoUrl] = useState('');
-    
+    const [isLogoLoading, setIsLogoLoading] = useState(true);
+
     useEffect(() => {
+        setIsLogoLoading(true);
         apiHelper.generateImage("an epic logo for a fantasy RPG game called 'AI Dungeons', with a stylized dragon and a glowing die, digital art")
             .then(url => {
                 if(url && !url.includes('placehold.co')) {
                     setLogoUrl(url);
                 }
+            })
+            .finally(() => {
+                setIsLogoLoading(false);
             });
     }, []);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
-            {logoUrl ? (
-                 <img src={logoUrl} alt="AI Dungeons Logo" className="w-64 h-64 md:w-80 md:h-80 object-contain mb-8" />
-            ) : (
-                <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-8 text-center">AI Dungeons</h1>
-            )}
+            <div className="w-64 h-64 md:w-80 md:h-80 mb-8 flex items-center justify-center">
+                {isLogoLoading ? (
+                    <div className="w-24 h-24 border-4 border-dashed rounded-full animate-spin border-red-500"></div>
+                ) : logoUrl ? (
+                    <img src={logoUrl} alt="AI Dungeons Logo" className="w-full h-full object-contain" />
+                ) : (
+                    <h1 className="text-4xl sm:text-5xl font-bold text-red-500 text-center">AI Dungeons</h1>
+                )}
+            </div>
             <div className="flex flex-col gap-4">
                 <button onClick={() => setGameState('character_creation')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition">{t('newGame')}</button>
                 <button onClick={loadGame} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-12 rounded-lg text-lg sm:text-xl transition disabled:bg-gray-500">{isLoading ? t('loading') : t('loadGame')}</button>
