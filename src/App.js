@@ -641,7 +641,7 @@ function BeastGenerationScreen({ lang, t, onCharacterCreated }) {
                     inventory: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, type: { type: "STRING" }, description: { type: "STRING" } } } },
                 }
             };
-            const prompt = `Invent a unique, low-level fantasy monster that could be a player character. Provide a name, its type/species as the 'class', balanced stats (totaling around 30), one active and one passive skill representing its natural abilities, and its natural weapons (claws, fangs, etc.) as its inventory.`;
+            const prompt = `Invent a completely unique and imaginative fantasy monster that could be a player character. Avoid common monster types like 'Glimmer', 'Slime', or simple elementals. Give it a creative name, species (as 'class'), balanced stats (totaling around 30), one active and one passive skill representing its natural abilities, and its natural weapons (claws, fangs, etc.) as its inventory.`;
             try {
                 const beastCharacter = await apiHelper.generate(prompt, lang, schema);
                 const portraitPrompt = `A detailed fantasy portrait of a ${beastCharacter.class} named ${beastCharacter.name}.`;
@@ -826,66 +826,95 @@ function NpcDialogueModal({ t, lang, character, npcName, story, onClose }) {
 
 function CharacterSheet({ t, character, bestiary, onClose }) {
      const [activeTab, setActiveTab] = useState('stats');
+     const [isPortraitModalOpen, setIsPortraitModalOpen] = useState(false);
+     const [selectedMonster, setSelectedMonster] = useState(null);
+
      const TabButton = ({ tabName, label }) => <button onClick={() => setActiveTab(tabName)} className={`py-2 px-4 font-bold rounded-t-lg ${activeTab === tabName ? 'bg-gray-700 text-red-400' : 'bg-gray-800 text-gray-400'}`}>{label}</button>;
+    
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl h-full max-h-[90vh] flex flex-col">
-                <header className="flex justify-between items-center p-4 border-b border-gray-700">
-                    <div className="flex items-center gap-4">
-                        {character.portraitUrl && <img src={character.portraitUrl} alt="Character Portrait" className="w-16 h-16 rounded-full border-2 border-red-500" />}
-                        <h2 className="text-2xl font-bold text-red-500">{character.name}</h2>
-                    </div>
-                    <button onClick={onClose} className="text-3xl">&times;</button>
-                </header>
-                <nav className="flex-shrink-0 border-b border-gray-700"><TabButton tabName="stats" label={t('stats')} /><TabButton tabName="inventory" label={t('inventory')} /><TabButton tabName="bestiary" label={t('bestiary')} /></nav>
-                <main className="p-6 overflow-y-auto">{activeTab === 'stats' && <div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                            {character.stats && Object.entries(character.stats).map(([stat, value]) => (
-                                <div key={stat} className="bg-gray-700 p-4 rounded-lg text-center">
-                                    <p className="text-sm uppercase text-gray-400">{t(stat)}</p>
-                                    <p className="text-3xl font-bold text-white">{Math.round(value)}</p>
-                                </div>
-                            ))}
-                        </div>
-                        <h3 className="text-xl font-bold text-red-400 mb-2">{t('masteries')}</h3>
-                        {character.masteries?.map(m => <p key={m.name}>{m.name}: Level {m.level}</p>)}
-                        <hr className="my-4 border-gray-700" />
-                        <h3 className="text-xl font-bold text-red-400 mb-2">{t('active')} {t('skills')}</h3>
-                        {character.skills?.active.map(s => <div key={s.name}><p className="font-bold">{s.name}</p><p className="text-sm text-gray-400">{s.description}</p></div>)}
-                        <hr className="my-4 border-gray-700" />
-                        <h3 className="text-xl font-bold text-red-400 mb-2">{t('passive')} {t('skills')}</h3>
-                        {character.skills?.passive.map(s => <div key={s.name}><p className="font-bold">{s.name}</p><p className="text-sm text-gray-400">{s.description}</p></div>)}
-                    </div>}
-                    {activeTab === 'inventory' && (
-                        <div>
-                            {character.inventory?.length > 0 ? (
-                                character.inventory.map((item, index) => (
-                                    <div key={index} className="mb-4 p-3 bg-gray-700 rounded">
-                                        <p className="font-bold text-lg text-white">{item.name}</p>
-                                        <p className="text-sm text-gray-400">{item.description}</p>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-gray-500">{t('noItems')}</p>
+        <>
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl h-full max-h-[90vh] flex flex-col">
+                    <header className="flex justify-between items-center p-4 border-b border-gray-700">
+                        <div className="flex items-center gap-4">
+                            {character.portraitUrl && (
+                                <button onClick={() => setIsPortraitModalOpen(true)} className="p-0 border-0 bg-transparent rounded-full">
+                                    <img src={character.portraitUrl} alt="Character Portrait" className="w-16 h-16 rounded-full border-2 border-red-500 cursor-pointer hover:opacity-80 transition-opacity" />
+                                </button>
                             )}
+                            <h2 className="text-2xl font-bold text-red-500">{character.name}</h2>
                         </div>
-                    )}
-                    {activeTab === 'bestiary' && (
-                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                            {bestiary.length > 0 ? (
-                                bestiary.map((monster, index) => (
-                                    <div key={index} className="bg-gray-700 rounded-lg p-2 text-center">
-                                        <img src={monster.icon} alt={monster.name} className="w-24 h-24 mx-auto rounded-full mb-2" />
-                                        <p className="font-bold">{monster.name}</p>
+                        <button onClick={onClose} className="text-3xl">&times;</button>
+                    </header>
+                    <nav className="flex-shrink-0 border-b border-gray-700"><TabButton tabName="stats" label={t('stats')} /><TabButton tabName="inventory" label={t('inventory')} /><TabButton tabName="bestiary" label={t('bestiary')} /></nav>
+                    <main className="p-6 overflow-y-auto">{activeTab === 'stats' && <div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                {character.stats && Object.entries(character.stats).map(([stat, value]) => (
+                                    <div key={stat} className="bg-gray-700 p-4 rounded-lg text-center">
+                                        <p className="text-sm uppercase text-gray-400">{t(stat)}</p>
+                                        <p className="text-3xl font-bold text-white">{Math.round(value)}</p>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-gray-500 col-span-full">{t('noCreatures')}</p>
-                            )}
-                        </div>
-                    )}</main>
+                                ))}
+                            </div>
+                            <h3 className="text-xl font-bold text-red-400 mb-2">{t('masteries')}</h3>
+                            {character.masteries?.map(m => <p key={m.name}>{m.name}: Level {m.level}</p>)}
+                            <hr className="my-4 border-gray-700" />
+                            <h3 className="text-xl font-bold text-red-400 mb-2">{t('active')} {t('skills')}</h3>
+                            {character.skills?.active.map(s => <div key={s.name}><p className="font-bold">{s.name}</p><p className="text-sm text-gray-400">{s.description}</p></div>)}
+                            <hr className="my-4 border-gray-700" />
+                            <h3 className="text-xl font-bold text-red-400 mb-2">{t('passive')} {t('skills')}</h3>
+                            {character.skills?.passive.map(s => <div key={s.name}><p className="font-bold">{s.name}</p><p className="text-sm text-gray-400">{s.description}</p></div>)}
+                        </div>}
+                        {activeTab === 'inventory' && (
+                            <div>
+                                {character.inventory?.length > 0 ? (
+                                    character.inventory.map((item, index) => (
+                                        <div key={index} className="mb-4 p-3 bg-gray-700 rounded">
+                                            <p className="font-bold text-lg text-white">{item.name}</p>
+                                            <p className="text-sm text-gray-400">{item.description}</p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500">{t('noItems')}</p>
+                                )}
+                            </div>
+                        )}
+                        {activeTab === 'bestiary' && (
+                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {bestiary.length > 0 ? (
+                                    bestiary.map((monster, index) => (
+                                        <button key={index} onClick={() => setSelectedMonster(monster)} className="bg-gray-700 rounded-lg p-2 text-center hover:bg-gray-600 transition">
+                                            {monster.icon ? <img src={monster.icon} alt={monster.name} className="w-24 h-24 mx-auto rounded-full mb-2 object-cover" /> : <div className="w-24 h-24 mx-auto rounded-full mb-2 bg-gray-600 flex items-center justify-center">?</div>}
+                                            <p className="font-bold">{monster.name}</p>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500 col-span-full">{t('noCreatures')}</p>
+                                )}
+                            </div>
+                        )}</main>
+                </div>
             </div>
-        </div>
+            {isPortraitModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => setIsPortraitModalOpen(false)}>
+                    <img src={character.portraitUrl} alt="Character Portrait" className="max-w-[90vw] max-h-[90vh] rounded-lg" />
+                </div>
+            )}
+            {selectedMonster && (
+                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" onClick={() => setSelectedMonster(null)}>
+                    <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md flex flex-col" onClick={e => e.stopPropagation()}>
+                         <header className="flex justify-between items-center p-4 border-b border-gray-700">
+                             <h2 className="text-2xl font-bold text-red-500">{selectedMonster.name}</h2>
+                             <button onClick={() => setSelectedMonster(null)} className="text-3xl">&times;</button>
+                         </header>
+                         <main className="p-6">
+                            <img src={selectedMonster.image} alt={selectedMonster.name} className="w-full rounded-lg mb-4" />
+                            <p>{selectedMonster.description}</p>
+                         </main>
+                    </div>
+                 </div>
+            )}
+        </>
     );
 }
 
