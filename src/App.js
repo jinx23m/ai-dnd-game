@@ -373,7 +373,7 @@ export default function App() {
 
         try {
             const saveDocRef = doc(db, 'artifacts', appId, 'users', userId, 'saves', 'dnd-save-slot-1');
-            await setDoc(saveDocRef, saveState); 
+            await setDoc(saveDocRef, { data: JSON.stringify(saveState) }); 
             setNotification(t('gameSaved'));
         } catch (error) {
             console.error("Error saving game:", error);
@@ -392,12 +392,12 @@ export default function App() {
             const docSnap = await getDoc(saveDocRef);
 
             if (docSnap.exists()) {
-                const loadedData = docSnap.data();
+                const loadedData = JSON.parse(docSnap.data().data);
                 setLanguage(loadedData.language || 'en');
-                setCharacter(loadedData.character ? JSON.parse(loadedData.character) : null);
-                setStory(loadedData.story ? JSON.parse(loadedData.story) : []);
-                setWorldLore(loadedData.worldLore ? JSON.parse(loadedData.worldLore) : { text: '', images: [], worldMap: '' });
-                setBestiary(loadedData.bestiary ? JSON.parse(loadedData.bestiary) : []);
+                setCharacter(loadedData.character || null);
+                setStory(loadedData.story || []);
+                setWorldLore(loadedData.worldLore || { text: '', images: [], worldMap: '' });
+                setBestiary(loadedData.bestiary || []);
                 setGameState(loadedData.gameState || 'main_menu');
                 setNotification(t('gameLoaded'));
             } else {
@@ -843,7 +843,7 @@ function CharacterSheet({ t, character, bestiary, onClose }) {
                             {character.stats && Object.entries(character.stats).map(([stat, value]) => (
                                 <div key={stat} className="bg-gray-700 p-4 rounded-lg text-center">
                                     <p className="text-sm uppercase text-gray-400">{t(stat)}</p>
-                                    <p className="text-3xl font-bold text-white">{value}</p>
+                                    <p className="text-3xl font-bold text-white">{Math.round(value)}</p>
                                 </div>
                             ))}
                         </div>
@@ -954,6 +954,11 @@ function EvolutionScreen({ lang, t, options, currentCharacter, setCharacter, set
         
         try {
             const evolvedCharacter = await apiHelper.generate(prompt, lang, schema);
+            
+            for (const stat in evolvedCharacter.stats) {
+                evolvedCharacter.stats[stat] = Math.round(evolvedCharacter.stats[stat]);
+            }
+
             const portraitPrompt = `A detailed fantasy portrait of a ${evolvedCharacter.class} named ${evolvedCharacter.name}.`;
             const portraitUrl = await apiHelper.generateImage(portraitPrompt);
             
