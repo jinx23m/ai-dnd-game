@@ -1,9 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-// Firebase Imports (ensure these are available in your setup)
-import { initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-
 
 // --- GAME DATA ---
 const racesData = {
@@ -14,9 +9,9 @@ const racesData = {
     "Gnome": { stats: { intelligence: 2, dexterity: 1 } },
     "Goliath": { stats: { strength: 2, constitution: 1 } },
     "Halfling": { stats: { dexterity: 2, charisma: 1 } },
-    "Half-Elf": { stats: { charisma: 2, dexterity: 1, wisdom: 1 } }, // Example of multiple bonuses
+    "Half-Elf": { stats: { charisma: 2, dexterity: 1, wisdom: 1 } },
     "Half-Orc": { stats: { strength: 2, constitution: 1 } },
-    "Human": { stats: { power: 1, agility: 1, intellect: 1, vitality: 1, charisma: 1, wisdom: 1 } }, // Versatile
+    "Human": { stats: { power: 1, agility: 1, intellect: 1, vitality: 1, charisma: 1, wisdom: 1 } },
     "Orc": { stats: { strength: 2, constitution: 1, intelligence: -1 } },
     "Tiefling": { stats: { charisma: 2, intelligence: 1 } },
     "Aarakocra": { stats: { dexterity: 2, wisdom: 1 } },
@@ -93,11 +88,8 @@ const translations = {
         mage: "Mage",
         rogue: "Rogue",
         cleric: "Cleric",
-        // Races
         Aasimar: "Aasimar", Dragonborn: "Dragonborn", Dwarf: "Dwarf", Elf: "Elf", Gnome: "Gnome", Goliath: "Goliath", Halfling: "Halfling", "Half-Elf": "Half-Elf", "Half-Orc": "Half-Orc", Human: "Human", Orc: "Orc", Tiefling: "Tiefling", Aarakocra: "Aarakocra", "Astral Elf": "Astral Elf", Autognome: "Autognome", Bugbear: "Bugbear", Centaur: "Centaur", Changeling: "Changeling", "Deep Gnome": "Deep Gnome", Dhampir: "Dhampir", Duergar: "Duergar", Eladrin: "Eladrin", Fairy: "Fairy", Firbolg: "Firbolg", Genasi: "Genasi", Giff: "Giff", Githyanki: "Githyanki", Githzerai: "Githzerai", Goblin: "Goblin", Hadozee: "Hadozee", Harengon: "Harengon", Hexblood: "Hexblood", Hobgoblin: "Hobgoblin", Kalashtar: "Kalashtar", Kender: "Kender", Kenku: "Kenku", Kobold: "Kobold", Leonin: "Leonin", Lizardfolk: "Lizardfolk", Loxodon: "Loxodon", Minotaur: "Minotaur", Owlin: "Owlin", Plasmoid: "Plasmoid", Reborn: "Reborn", Satyr: "Satyr", "Sea Elf": "Sea Elf", "Shadar-kai": "Shadar-kai", Shifter: "Shifter", "Simic Hybrid": "Simic Hybrid", Tabaxi: "Tabaxi", "Thri-kreen": "Thri-kreen", Tortle: "Tortle", Triton: "Triton", Vedalken: "Vedalken", Verdan: "Verdan", Warforged: "Warforged", "Yuan-ti": "Yuan-ti",
-        // Classes
         Artificer: "Artificer", Barbarian: "Barbarian", Bard: "Bard", Druid: "Druid", Fighter: "Fighter", Monk: "Monk", Paladin: "Paladin", Ranger: "Ranger", Sorcerer: "Sorcerer", Warlock: "Warlock", Wizard: "Wizard",
-        // End Races & Classes
         beginAdventure: "Begin Adventure",
         characterSheet: "Character Sheet",
         map: "Map",
