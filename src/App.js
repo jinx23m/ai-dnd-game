@@ -14,9 +14,9 @@ const racesData = {
     "Gnome": { stats: { intelligence: 2, dexterity: 1 } },
     "Goliath": { stats: { strength: 2, constitution: 1 } },
     "Halfling": { stats: { dexterity: 2, charisma: 1 } },
-    "Half-Elf": { stats: { charisma: 2, dexterity: 1, wisdom: 1 } }, // Example of multiple bonuses
+    "Half-Elf": { stats: { charisma: 2, dexterity: 1, wisdom: 1 } },
     "Half-Orc": { stats: { strength: 2, constitution: 1 } },
-    "Human": { stats: { power: 1, agility: 1, intellect: 1, vitality: 1, charisma: 1, wisdom: 1 } }, // Versatile
+    "Human": { stats: { power: 1, agility: 1, intellect: 1, vitality: 1, charisma: 1, wisdom: 1 } },
     "Orc": { stats: { strength: 2, constitution: 1, intelligence: -1 } },
     "Tiefling": { stats: { charisma: 2, intelligence: 1 } },
     "Aarakocra": { stats: { dexterity: 2, wisdom: 1 } },
