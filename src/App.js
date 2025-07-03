@@ -709,9 +709,14 @@ function GameScreen({ lang, t, character, setCharacter, story, setStory, bestiar
     
     useEffect(() => {
         if (story.length === 0 && character) {
-            handlePlayerAction("The adventure begins. Tell me where I am.");
+            const initialPrompts = {
+                en: "The adventure begins. Tell me where I am.",
+                he: "ההרפתקה מתחילה. ספר לי היכן אני נמצא.",
+                ru: "Приключение начинается. Скажи мне, где я."
+            };
+            handlePlayerAction(initialPrompts[lang] || initialPrompts['en']);
         }
-    }, [character, story.length, handlePlayerAction]);
+    }, [character, story.length, handlePlayerAction, lang]);
 
     return (
         <div className="flex flex-col h-screen p-2 sm:p-4 gap-4">
