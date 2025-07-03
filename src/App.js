@@ -132,6 +132,8 @@ const translations = {
         newGame: "New Game",
         playAsBeast: "Play as a Beast",
         generatingBeast: "Conjuring a creature from the abyss...",
+        evolution: "Evolution",
+        chooseEvolution: "Choose Your Evolution Path",
         loadGame: "Load Game",
         saveGame: "Save Game",
         gameSaved: "Game Saved!",
@@ -195,6 +197,8 @@ const translations = {
         newGame: "משחק חדש",
         playAsBeast: "שחק כמפלצת",
         generatingBeast: "מזמן יצור מהתהום...",
+        evolution: "התפתחות",
+        chooseEvolution: "בחר נתיב התפתחות",
         loadGame: "טען משחק",
         saveGame: "שמור משחק",
         gameSaved: "המשחק נשמר!",
@@ -258,6 +262,8 @@ const translations = {
         newGame: "Новая игра",
         playAsBeast: "Играть за монстра",
         generatingBeast: "Создание существа из бездны...",
+        evolution: "Эволюция",
+        chooseEvolution: "Выберите путь эволюции",
         loadGame: "Загрузить игру",
         saveGame: "Сохранить игру",
         gameSaved: "Игра сохранена!",
@@ -331,6 +337,7 @@ export default function App() {
     const [userId, setUserId] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [notification, setNotification] = useState('');
+    const [evolutionOptions, setEvolutionOptions] = useState([]);
     const t = useTranslation(language);
 
     useEffect(() => {
@@ -426,7 +433,8 @@ export default function App() {
         character_creation: <CharacterCreationScreen lang={language} t={t} onCharacterCreated={handleCharacterCreated} />,
         beast_generation: <BeastGenerationScreen lang={language} t={t} onCharacterCreated={handleCharacterCreated} />,
         world_intro: <WorldIntroScreen lang={language} t={t} character={character} worldLore={worldLore} setWorldLore={setWorldLore} setGameState={setGameState} />,
-        playing: <GameScreen lang={language} t={t} character={character} setCharacter={setCharacter} story={story} setStory={setStory} bestiary={bestiary} setBestiary={setBestiary} saveGame={saveGame} isSaving={isSaving} setNotification={setNotification} worldMapUrl={worldLore.worldMap} />,
+        playing: <GameScreen lang={language} t={t} character={character} setCharacter={setCharacter} story={story} setStory={setStory} bestiary={bestiary} setBestiary={setBestiary} saveGame={saveGame} isSaving={isSaving} setNotification={setNotification} worldMapUrl={worldLore.worldMap} setGameState={setGameState} setEvolutionOptions={setEvolutionOptions} />,
+        evolution_pending: <EvolutionScreen lang={language} t={t} options={evolutionOptions} currentCharacter={character} setCharacter={setCharacter} setGameState={setGameState} />,
         game_over: <GameOverScreen t={t} onRestart={resetGame} />,
     };
 
@@ -657,7 +665,7 @@ function BeastGenerationScreen({ lang, t, onCharacterCreated }) {
 }
 
 
-function GameScreen({ lang, t, character, setCharacter, story, setStory, bestiary, setBestiary, saveGame, isSaving, setNotification, worldMapUrl }) {
+function GameScreen({ lang, t, character, setCharacter, story, setStory, bestiary, setBestiary, saveGame, isSaving, setNotification, worldMapUrl, setGameState, setEvolutionOptions }) {
     const [isLoading, setIsLoading] = useState(false);
     const [action, setAction] = useState('');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -689,6 +697,18 @@ function GameScreen({ lang, t, character, setCharacter, story, setStory, bestiar
                          m.level += 1;
                          m.xp -= xpToLevel;
                          leveledUp = true;
+                         
+                         if(character.race === character.class){ // It's a monster
+                            if(m.level === 5 || m.level === 10 || m.level === 15) { // Evolution levels
+                                const evoSchema = { type: "OBJECT", properties: { options: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, description: { type: "STRING" } } } } } };
+                                const evoPrompt = `The player's monster, a ${character.class}, has reached a point of evolution. Generate 2-3 distinct, cooler, and more powerful evolution options. For each option, provide a new 'class' (species name) and a brief, exciting description of its new form and powers.`;
+                                const evoResult = await apiHelper.generate(evoPrompt, lang, evoSchema);
+                                setEvolutionOptions(evoResult.options);
+                                setGameState('evolution_pending');
+                                return; // Stop further processing until evolution is chosen
+                            }
+                         }
+
                          const skillSchema = {type: "OBJECT", properties: { name: {type: "STRING"}, description: {type: "STRING"}, type: {type: "STRING", enum: ["active", "passive"]} }};
                          const skillPrompt = `A character proficient in ${m.name} has reached level ${m.level}. Grant them a new skill.`;
                          const newSkill = await apiHelper.generate(skillPrompt, lang, skillSchema);
@@ -705,7 +725,7 @@ function GameScreen({ lang, t, character, setCharacter, story, setStory, bestiar
             setStory(prev => [...prev, { type: 'dm', text: t('actionPrevented') }]);
         }
         setIsLoading(false);
-    }, [story, character, lang, setStory, setCurrentNPCs, setCharacter, setNotification, t]);
+    }, [story, character, lang, setStory, setCurrentNPCs, setCharacter, setNotification, t, setGameState, setEvolutionOptions]);
     
     useEffect(() => {
         if (story.length === 0 && character) {
@@ -910,6 +930,55 @@ function MapModal({ t, story, worldMapUrl, onClose }) {
                         </div>
                     )}
                 </main>
+            </div>
+        </div>
+    );
+}
+
+function EvolutionScreen({ lang, t, options, currentCharacter, setCharacter, setGameState }) {
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleEvolve = async (choice) => {
+        setIsLoading(true);
+        const schema = {
+            type: "OBJECT",
+            properties: {
+                name: { type: "STRING" },
+                class: { type: "STRING" },
+                stats: { type: "OBJECT", properties: { power: { type: "NUMBER" }, agility: { type: "NUMBER" }, intellect: { type: "NUMBER" }, vitality: { type: "NUMBER" } } },
+                skills: { type: "OBJECT", properties: { active: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, description: { type: "STRING" } } } }, passive: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, description: { type: "STRING" } } } } } },
+                inventory: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, type: { type: "STRING" }, description: { type: "STRING" } } } },
+            }
+        };
+        const prompt = `The player's monster, a ${currentCharacter.class}, has chosen to evolve into a '${choice.name}'. Generate a new, complete character sheet for this new form. It should have the new class '${choice.name}', more powerful stats than before, a new set of active and passive skills reflecting its new form, and updated inventory (natural weapons). Keep the original name '${currentCharacter.name}'.`;
+        
+        try {
+            const evolvedCharacter = await apiHelper.generate(prompt, lang, schema);
+            const portraitPrompt = `A detailed fantasy portrait of a ${evolvedCharacter.class} named ${evolvedCharacter.name}.`;
+            const portraitUrl = await apiHelper.generateImage(portraitPrompt);
+            
+            setCharacter({ ...evolvedCharacter, race: evolvedCharacter.class, portraitUrl, masteries: currentCharacter.masteries });
+            setGameState('playing');
+        } catch (e) {
+            alert("Failed to evolve. Please try again.");
+            setGameState('playing'); // Return to game
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-900 text-white">
+            <h1 className="text-4xl font-bold text-purple-400 mb-8">{t('evolution')}</h1>
+            <p className="text-lg mb-6">{t('chooseEvolution')}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {options.map(option => (
+                    <div key={option.name} className="bg-gray-800 p-6 rounded-lg border border-purple-500">
+                        <h2 className="text-2xl font-bold text-purple-300">{option.name}</h2>
+                        <p className="text-gray-400 mt-2 mb-4">{option.description}</p>
+                        <button onClick={() => handleEvolve(option)} disabled={isLoading} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition disabled:bg-gray-500">
+                            {isLoading ? t('loading') : `Evolve into ${option.name}`}
+                        </button>
+                    </div>
+                ))}
             </div>
         </div>
     );
